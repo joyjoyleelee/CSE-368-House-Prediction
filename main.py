@@ -1,16 +1,17 @@
 import csv
-# import matplotlib.pyplot as plt
-# import numpy as np
-# from sklearn import datasets, linear_model
-# from sklearn.metrics import mean_squared_error, r2_score
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 #Create dictionaries
 ASPUS_dict = {} #{year: total average house price per year}
 HPI_dict = {} #{year: house price index per year}
 IR_dict = {} #{year: interest rate per year}
-
+ADJUSTED_dict = {} #{year: calculated house price per year}
+PREDICTED_PRICES = {} #{year: calculated predictedhouse price per year}
 #Average all 4 data points in the ASPUS for each year - calculate the total average per year
+
+
 def find_total_average_house_price():
     with open("ASPUS.csv", "r") as file:
         reader = csv.reader(file)
@@ -32,7 +33,7 @@ def find_total_average_house_price():
 
 #Test if we calculate average house price correctly
 find_total_average_house_price()
-print(f'ASPUS: {ASPUS_dict}')
+print(f'ASPUS: {ASPUS_dict}' + "\n")
 #1963 -> 19375
 #1964 -> 20300
 #2023 -> 507233.33
@@ -46,7 +47,7 @@ def house_index():
             HPI_dict[row[0]]=float(row[1].strip())
 
 house_index()
-print(f'House Price Index: {HPI_dict}')
+print(f'House Price Index: {HPI_dict}' + "\n")
 
 #Store interest rate per year in our IR_dict
 def interest_rates():
@@ -57,6 +58,71 @@ def interest_rates():
             IR_dict[row[0]]= float(row[1].strip())
 
 interest_rates()
-print(f'Interest Rates: {IR_dict}')
+print(f'Interest Rates: {IR_dict}'+ "\n")
 
 
+"""
+From 1975 - 2022
+-Take the average house price for every year, multiply it by the (1 + interest rate)
+-Take the House Price Index, and since it is a percentage, divide it by 100 
+to get it into decimal form, square the value
+    -If it is greater than 0, (1 + HPI) * house price
+    -If the HPI is a negative number, (1 - HPI) * house price
+
+
+Since the average house price that we began with was just the cost of the house, we did the calculations to 
+account for the additional costs of the interest rate, inflation year to year, and the gain/loss of the value of the property over time
+"""
+
+def calc_function():
+    for year in ASPUS_dict:
+        if int(year) > 1975 and int(year) < 2023:
+            ASPUS_dict[year] = ASPUS_dict[year] * (1 + IR_dict[year])
+            HPI = (HPI_dict[year]/100) ** 2
+            if (HPI) > 0:
+                ASPUS_dict[year] = ((1 + HPI) * ASPUS_dict[year])
+            elif (HPI) < 0:
+                ASPUS_dict[year] = ((1 - HPI) * ASPUS_dict[year])
+
+calc_function()
+for i in range(1975, 2023):
+    ADJUSTED_dict[str(i)] = ASPUS_dict[str(i)]
+
+print(f'Adjusted_dict: {ADJUSTED_dict}' + '\n')
+y  =  list(x for x in ADJUSTED_dict.values()) #house prices
+x  =  list(int(x) for x in ADJUSTED_dict.keys()) #years
+print(f"Ajusted x: {x}" + "\n")
+print(f"Ajusted y: {y}" + "\n")
+
+
+
+#----------------------------------total line of best fit----------------------------------------------
+#define data
+x.append(2037)
+y.append(557580.7482)
+x = np.array(x) #years
+y = np.array(y) #house prices
+
+#find line of best fit
+a, b = np.polyfit(x, y, 1)
+print(f'Linear Regression Model for True Average House Prices: y = {a}x + {b}' + '\n')
+
+for i in range(2023, 2038):
+    PREDICTED_PRICES[i] = (a * i) + b
+
+print(f'Predicted Prices: {PREDICTED_PRICES}')
+print("****************************************END****************************************************")
+#add points to plot
+plt.scatter(x, y)
+
+#add line of best fit to plot
+plt.plot(x, a*x+b) 
+
+#plot the individual data points
+plt.plot(x,y)
+plt.title("Linear Regression of House Prices in the U.S.")
+plt.xlabel("Year")
+plt.ylabel("Average House Price")
+plt.xticks(rotation = 25)
+plt.grid()
+plt.show()
